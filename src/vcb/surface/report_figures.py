@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from html import escape
-import json
 from pathlib import Path
-import subprocess
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 
 class ReportFigureError(RuntimeError):
@@ -23,11 +25,15 @@ _AMBER = "#FDF2DC"
 
 def _svg_start(title: str, width: int, height: int) -> list[str]:
     return [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
-        f'viewBox="0 0 {width} {height}">',
+        (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+            f'viewBox="0 0 {width} {height}">'
+        ),
         f'<rect width="{width}" height="{height}" fill="{_BG}"/>',
-        f'<text x="40" y="52" font-family="system-ui, sans-serif" font-size="26" '
-        f'font-weight="600" fill="{_TEXT}">{escape(title)}</text>',
+        (
+            f'<text x="40" y="52" font-family="system-ui, sans-serif" font-size="26" '
+            f'font-weight="600" fill="{_TEXT}">{escape(title)}</text>'
+        ),
     ]
 
 
@@ -317,7 +323,67 @@ def capture_cli_evidence(
     )
 
 
-def generate_report_figures(ledger_path: Path, output_dir: Path) -> list[Path]:
-    raise ReportFigureError(
-        "figure generation requires the CLI capture and renderer tasks"
-    )
+def generate_report_figures(
+    ledger_path: Path,
+    output_dir: Path,
+    *,
+    runner: CommandRunner | None = None,
+) -> list[Path]:
+    runner = runner or CommandRunner()
+    evidence = capture_cli_evidence(ledger_path, runner)
+    receipt = load_ledger_receipt(ledger_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    rendered = {
+        "figure-1-system-architecture": render_architecture_figure(),
+        "figure-2-execution-attack-detection": render_attack_figure(evidence),
+        "figure-3-audit-receipt": render_receipt_figure(
+            receipt,
+            provenance="[M] shared fixture ledger",
+        ),
+    }
+    dimensions = {
+        "figure-1-system-architecture": (1200, 620),
+        "figure-2-execution-attack-detection": (1200, 620),
+        "figure-3-audit-receipt": (1200, 620),
+    }
+    paths: list[Path] = []
+    for stem, svg in rendered.items():
+        svg_path = output_dir / f"{stem}.svg"
+        png_path = output_dir / f"{stem}.png"
+        svg_path.write_text(svg, encoding="utf-8")
+        width, height = dimensions[stem]
+        _render_png(svg_path, png_path, width * 2, height * 2)
+        paths.extend((svg_path, png_path))
+    return paths
+
+
+def _render_png(svg_path: Path, png_path: Path, width: int, height: int) -> None:
+    sips = shutil.which("sips")
+    if sips:
+        result = subprocess.run(
+            [sips, "-s", "format", "png", "-z", str(height), str(width), str(svg_path), "--out", str(png_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return
+        raise ReportFigureError(f"sips failed to render PNG: {result.stderr.strip()}")
+
+    try:
+        import cairosvg
+    except ImportError as exc:
+        raise ReportFigureError(
+            "PNG export requires macOS sips or the CairoSVG dependency"
+        ) from exc
+    try:
+        cairosvg.svg2png(
+            url=str(svg_path),
+            write_to=str(png_path),
+            output_width=width,
+            output_height=height,
+        )
+    except OSError as exc:
+        raise ReportFigureError(
+            "CairoSVG is installed but its native cairo library is unavailable"
+        ) from exc

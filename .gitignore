@@ -87,3 +87,7 @@ htmlcov/
 *~
 .DS_Store
 Thumbs.db
+/.venv/
+/.pytest_cache/
+__pycache__/
+results/report-figures/
