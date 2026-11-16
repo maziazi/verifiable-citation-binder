@@ -1,0 +1,7 @@
+{
+  "status": "complete",
+  "reasons": ["L03"],
+  "cases": [
+    {"class": "edit", "detected": true}
+  ]
+}

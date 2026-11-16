@@ -136,6 +136,66 @@ def load_ledger_receipt(path: Path) -> LedgerReceipt:
         raise ReportFigureError(f"invalid ledger receipt: {exc}") from exc
 
 
+def _parse_cli_json(result: CommandResult, label: str) -> Mapping[str, Any]:
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise ReportFigureError(f"{label} command returned invalid JSON") from exc
+    if not isinstance(payload, Mapping):
+        raise ReportFigureError(f"{label} command must return a JSON object")
+    return payload
+
+
+def capture_cli_evidence(
+    ledger_path: Path,
+    runner: CommandRunner,
+) -> FigureEvidence:
+    verify_command = ["uv", "run", "vcb", "verify", str(ledger_path), "--json"]
+    attack_command = ["uv", "run", "vcb", "attack", str(ledger_path), "--json"]
+    verify_payload = _parse_cli_json(
+        runner.run_required(verify_command),
+        "verify",
+    )
+    attack_payload = _parse_cli_json(
+        runner.run_required(attack_command),
+        "attack",
+    )
+
+    verify_status = verify_payload.get("status")
+    if verify_status != "valid":
+        raise ReportFigureError("verify output must have status 'valid'")
+    attack_status = attack_payload.get("status")
+    if attack_status != "complete":
+        raise ReportFigureError("attack output must have status 'complete'")
+    reasons = attack_payload.get("reasons")
+    if not isinstance(reasons, list) or not reasons:
+        raise ReportFigureError("attack output must include non-empty reasons")
+    cases = attack_payload.get("cases")
+    if not isinstance(cases, list) or not cases:
+        raise ReportFigureError("attack output must include cases")
+    for index, case in enumerate(cases):
+        if not isinstance(case, Mapping):
+            raise ReportFigureError(f"attack case {index} must be an object")
+        if case.get("detected") is not True or case.get("localized") is not True:
+            raise ReportFigureError(
+                f"attack case {index} must include detected and localized=true"
+            )
+        if not isinstance(case.get("code"), str) or not case["code"]:
+            raise ReportFigureError(f"attack case {index} must include a reason code")
+
+    return FigureEvidence.from_mapping(
+        {
+            "status": verify_status,
+            "reasons": reasons,
+            "attack_cases": cases,
+            "provenance": (
+                f"[M] uv run vcb verify {ledger_path} --json; "
+                f"uv run vcb attack {ledger_path} --json"
+            ),
+        }
+    )
+
+
 def generate_report_figures(ledger_path: Path, output_dir: Path) -> list[Path]:
     raise ReportFigureError(
         "figure generation requires the CLI capture and renderer tasks"

@@ -1,0 +1,15 @@
+{
+  "verify": {
+    "status": "valid",
+    "reasons": ["L00"],
+    "record_count": 3
+  },
+  "attack": {
+    "status": "complete",
+    "reasons": ["L03", "L01", "L02"],
+    "cases": [
+      {"class": "edit", "detected": true, "localized": true, "code": "L03"},
+      {"class": "omission", "detected": true, "localized": true, "code": "L01"}
+    ]
+  }
+}
