@@ -1,0 +1,89 @@
+# ---------------------------------------------------------------------------
+# Secrets — never commit. See AGENTS.md "Hard prohibitions".
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.json
+.anthropic/
+
+# ---------------------------------------------------------------------------
+# Ledger state — only generated fixtures are tracked.
+# A real session ledger must never be committed; it may contain user queries.
+# ---------------------------------------------------------------------------
+audit_ledger.json
+*.ledger.json
+ledger.head
+!tests/fixtures/*.ledger.json
+!tests/fixtures/ledger.head
+
+# ---------------------------------------------------------------------------
+# Generated results — committed deliberately, not incidentally.
+# Tracked:   results/metrics.json, results/cost.json, results/attack.json
+# Ignored:   raw per-case dumps and intermediate runs
+# ---------------------------------------------------------------------------
+results/*
+!results/.gitkeep
+!results/metrics.json
+!results/cost.json
+!results/attack.json
+
+# Adjudication response cache (local, large, regenerable)
+.vcb_cache/
+*.cache.jsonl
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+sdist/
+var/
+pip-wheel-metadata/
+
+# Environments
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# Testing and type checking
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# ---------------------------------------------------------------------------
+# Tooling
+# ---------------------------------------------------------------------------
+.streamlit/secrets.toml
+.ipynb_checkpoints/
+*.log
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
