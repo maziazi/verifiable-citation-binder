@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -234,17 +235,33 @@ class LedgerReceipt:
         fields = {field: value[field] for field in required[1:]}
         if not all(isinstance(item, str) and item for item in fields.values()):
             raise ValueError("chain fields must be non-empty strings")
+        claim = value.get("claim")
+        if not isinstance(claim, str) or not claim:
+            raise ValueError("claim is required")
+        score = value.get("score")
+        if (
+            not isinstance(score, (int, float))
+            or isinstance(score, bool)
+            or not math.isfinite(score)
+            or not 0 <= score <= 100
+        ):
+            raise ValueError("score must be a number between 0 and 100")
+        band = value.get("band")
+        if not isinstance(band, str) or not band:
+            raise ValueError("band is required")
         reasons = value.get("reasons", [])
-        if not isinstance(reasons, list) or not all(isinstance(item, str) for item in reasons):
-            raise ValueError("reasons must be a list of strings")
+        if not isinstance(reasons, list) or not reasons or not all(
+            isinstance(item, str) and item for item in reasons
+        ):
+            raise ValueError("reasons must be a non-empty list of strings")
         return cls(
             seq=seq,
             source_hash=fields["source_hash"],
             prev_hash=fields["prev_hash"],
             entry_hash=fields["entry_hash"],
-            claim=str(value.get("claim", "")),
-            score=value.get("score"),
-            band=str(value.get("band", "")),
+            claim=claim,
+            score=score,
+            band=band,
             reasons=tuple(reasons),
         )
 
@@ -291,6 +308,9 @@ def capture_cli_evidence(
     verify_status = verify_payload.get("status")
     if verify_status != "valid":
         raise ReportFigureError("verify output must have status 'valid'")
+    verify_reasons = verify_payload.get("reasons")
+    if not isinstance(verify_reasons, list) or not verify_reasons:
+        raise ReportFigureError("verification output must include non-empty reasons")
     attack_status = attack_payload.get("status")
     if attack_status != "complete":
         raise ReportFigureError("attack output must have status 'complete'")
@@ -303,6 +323,8 @@ def capture_cli_evidence(
     for index, case in enumerate(cases):
         if not isinstance(case, Mapping):
             raise ReportFigureError(f"attack case {index} must be an object")
+        if not isinstance(case.get("class"), str) or not case["class"]:
+            raise ReportFigureError(f"attack case {index} must include class")
         if case.get("detected") is not True or case.get("localized") is not True:
             raise ReportFigureError(
                 f"attack case {index} must include detected and localized=true"
@@ -316,8 +338,7 @@ def capture_cli_evidence(
             "reasons": reasons,
             "attack_cases": cases,
             "provenance": (
-                f"[M] uv run vcb verify {ledger_path} --json; "
-                f"uv run vcb attack {ledger_path} --json"
+                "[M] uv run vcb verify --json; uv run vcb attack --json"
             ),
         }
     )

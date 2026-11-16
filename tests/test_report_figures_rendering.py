@@ -65,3 +65,18 @@ def test_receipt_figure_rejects_missing_chain_field() -> None:
         render_receipt_figure(
             {"seq": 7, "source_hash": "source-123", "prev_hash": "prev-456"}
         )
+
+
+def test_receipt_figure_rejects_missing_semantic_field() -> None:
+    with pytest.raises(ReportFigureError, match="claim"):
+        render_receipt_figure(
+            {
+                "seq": 7,
+                "source_hash": "source-123",
+                "prev_hash": "prev-456",
+                "entry_hash": "entry-789",
+                "score": 70,
+                "band": "AMBER",
+                "reasons": ["S02"],
+            }
+        )

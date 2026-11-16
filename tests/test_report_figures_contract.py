@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from vcb.surface.report_figures import (
-    CommandRunner,
     CommandResult,
+    CommandRunner,
     FigureEvidence,
     LedgerReceipt,
     ReportFigureError,
@@ -20,6 +20,21 @@ def test_figure_evidence_requires_status_and_reason_codes() -> None:
 def test_ledger_receipt_requires_chain_fields() -> None:
     with pytest.raises(ValueError, match="entry_hash"):
         LedgerReceipt.from_mapping({"seq": 0, "source_hash": "abc", "prev_hash": "0"})
+
+
+def test_ledger_receipt_requires_semantic_fields() -> None:
+    with pytest.raises(ValueError, match="claim"):
+        LedgerReceipt.from_mapping(
+            {
+                "seq": 0,
+                "source_hash": "abc",
+                "prev_hash": "0",
+                "entry_hash": "entry",
+                "score": 70,
+                "band": "AMBER",
+                "reasons": ["S02"],
+            }
+        )
 
 
 def test_command_runner_returns_process_result_without_swallowing_failure(
@@ -90,4 +105,42 @@ def test_capture_cli_evidence_rejects_missing_localization(tmp_path: Path) -> No
     )
 
     with pytest.raises(ReportFigureError, match="localized"):
+        capture_cli_evidence(tmp_path / "ledger.json", runner)
+
+
+def test_capture_cli_evidence_rejects_missing_verification_reasons(
+    tmp_path: Path,
+) -> None:
+    runner = QueueRunner(
+        [
+            CommandResult(("verify",), 0, '{"status":"valid"}', ""),
+            CommandResult(
+                ("attack",),
+                0,
+                '{"status":"complete","reasons":["L03"],"cases":'
+                '[{"class":"edit","detected":true,"localized":true,"code":"L03"}]}',
+                "",
+            ),
+        ]
+    )
+
+    with pytest.raises(ReportFigureError, match="verification.*reasons"):
+        capture_cli_evidence(tmp_path / "ledger.json", runner)
+
+
+def test_capture_cli_evidence_rejects_missing_attack_class(tmp_path: Path) -> None:
+    runner = QueueRunner(
+        [
+            CommandResult(("verify",), 0, '{"status":"valid","reasons":["L00"]}', ""),
+            CommandResult(
+                ("attack",),
+                0,
+                '{"status":"complete","reasons":["L03"],"cases":'
+                '[{"detected":true,"localized":true,"code":"L03"}]}',
+                "",
+            ),
+        ]
+    )
+
+    with pytest.raises(ReportFigureError, match="class"):
         capture_cli_evidence(tmp_path / "ledger.json", runner)
