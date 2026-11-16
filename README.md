@@ -163,6 +163,23 @@ cd verifiable-citation-binder
 uv sync                        # or: pip install -e ".[dev]"
 ```
 
+### Regenerate report figures
+
+The reproducible figure workflow is documented in
+[`docs/report-figures.md`](docs/report-figures.md). It produces the architecture
+diagram, offline attack-detection evidence, and a fixture-derived audit receipt
+without an API key:
+
+```bash
+uv run vcb figures \
+  --ledger tests/fixtures/demo_audit_ledger.json \
+  --output-dir results/report-figures
+```
+
+The command fails explicitly until the offline `verify`/`attack` CLI and shared
+demo ledger are present; it never replaces missing evidence with a fabricated
+success state.
+
 ### Verify the sealed ledger — no API key required
 
 ```bash
