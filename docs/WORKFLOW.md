@@ -213,6 +213,14 @@ chain cannot, because PR-05 is the hard checkpoint in `docs/PLAN.md` §2.
 Parallelizable once PR-03 lands: the `06 → 07 → 08` chain and the `13` corpus work
 are independent of `04 → 05`.
 
+### Report figure dependency
+
+The report-figure generator belongs to the evidence phase. It may render the
+architecture figure independently, but Figures 2–3 must wait for the offline
+`verify`/`attack` CLI and shared fixture ledger from PR-01 through PR-05. The
+generator must fail rather than fabricate evidence when those prerequisites are
+missing. See [`docs/report-figures.md`](report-figures.md).
+
 ---
 
 ## 4. Branch and PR conventions
